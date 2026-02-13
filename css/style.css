@@ -1,0 +1,132 @@
+﻿:root {
+  --space-deep: #070b1f;
+  --space-mid: #101b3d;
+  --space-soft: #17275a;
+  --highlight-warm: #ffbd8e;
+  --highlight-cool: #9db8ff;
+  --text-main: #f4f4ff;
+  --text-soft: #c7cfef;
+}
+
+* {
+  box-sizing: border-box;
+}
+
+html,
+body {
+  margin: 0;
+  padding: 0;
+  min-height: 100%;
+  background: radial-gradient(circle at 25% 15%, #1e2f66 0%, var(--space-deep) 44%, #030512 100%);
+  color: var(--text-main);
+  font-family: "Plus Jakarta Sans", "Segoe UI", sans-serif;
+  overflow-x: hidden;
+}
+
+#scene-canvas {
+  position: fixed;
+  inset: 0;
+  width: 100%;
+  height: 100%;
+  display: block;
+  z-index: 0;
+}
+
+.aurora-overlay {
+  position: fixed;
+  inset: 0;
+  z-index: 1;
+  pointer-events: none;
+  background:
+    radial-gradient(circle at 82% 14%, rgba(255, 190, 142, 0.14) 0%, rgba(255, 190, 142, 0) 42%),
+    radial-gradient(circle at 12% 72%, rgba(122, 160, 255, 0.2) 0%, rgba(122, 160, 255, 0) 48%),
+    linear-gradient(180deg, rgba(7, 11, 31, 0.12) 0%, rgba(7, 11, 31, 0.5) 100%);
+}
+
+.story {
+  position: relative;
+  z-index: 2;
+}
+
+.panel {
+  min-height: 100vh;
+  width: min(100%, 1080px);
+  margin: 0 auto;
+  padding: clamp(2rem, 7vw, 5rem);
+  display: flex;
+  flex-direction: column;
+  justify-content: center;
+  pointer-events: auto;
+}
+
+.eyebrow {
+  margin: 0;
+  font-size: clamp(0.72rem, 1.1vw, 0.95rem);
+  letter-spacing: 0.26em;
+  text-transform: uppercase;
+  color: var(--text-soft);
+  opacity: 0.92;
+}
+
+.title {
+  margin: 0.45rem 0 1rem;
+  font-family: "Cormorant Garamond", "Times New Roman", serif;
+  font-size: clamp(2rem, 6vw, 5rem);
+  font-weight: 500;
+  line-height: 1.02;
+  max-width: 13ch;
+  text-wrap: balance;
+  letter-spacing: 0.01em;
+  text-shadow: 0 0 24px rgba(157, 184, 255, 0.25);
+}
+
+.caption {
+  margin: 0;
+  max-width: 28ch;
+  font-family: "Cormorant Garamond", "Times New Roman", serif;
+  font-size: clamp(1.4rem, 3.5vw, 2.5rem);
+  line-height: 1.2;
+  letter-spacing: 0.01em;
+  color: #f8f7ff;
+  text-shadow: 0 0 20px rgba(115, 141, 255, 0.25);
+  transition: text-shadow 280ms ease, letter-spacing 280ms ease;
+}
+
+.panel .caption:hover {
+  letter-spacing: 0.02em;
+  text-shadow: 0 0 26px rgba(255, 189, 142, 0.42);
+}
+
+.intro {
+  align-items: flex-start;
+  text-align: left;
+}
+
+.journey,
+.connection,
+.finale {
+  align-items: center;
+  text-align: center;
+}
+
+.finale .caption {
+  color: #fff6ee;
+  text-shadow: 0 0 24px rgba(255, 189, 142, 0.38);
+}
+
+@media (max-width: 700px) {
+  .panel {
+    padding: 1.5rem;
+    align-items: center;
+    text-align: center;
+  }
+
+  .title,
+  .caption {
+    max-width: 100%;
+  }
+
+  .eyebrow {
+    margin-bottom: 0.4rem;
+  }
+}
