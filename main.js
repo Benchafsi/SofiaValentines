@@ -57,42 +57,158 @@
     return new THREE.CanvasTexture(texCanvas);
   }
 
-  function createStarField(count, spread, palette) {
-    const positions = new Float32Array(count * 3);
-    const colors = new Float32Array(count * 3);
-    const color = new THREE.Color();
+  function createStarTexture({
+    shape = "star4",
+    innerRadius = 12,
+    outerRadius = 30,
+    blurRadius = 56
+  } = {}) {
+    const texCanvas = document.createElement("canvas");
+    texCanvas.width = 128;
+    texCanvas.height = 128;
+    const ctx = texCanvas.getContext("2d");
+    const center = texCanvas.width * 0.5;
 
-    for (let i = 0; i < count; i += 1) {
-      const r = 10 + Math.random() * spread;
-      const theta = Math.random() * Math.PI * 2;
-      const phi = Math.acos(2 * Math.random() - 1);
+    ctx.clearRect(0, 0, texCanvas.width, texCanvas.height);
 
-      positions[i * 3 + 0] = r * Math.sin(phi) * Math.cos(theta);
-      positions[i * 3 + 1] = r * Math.sin(phi) * Math.sin(theta) * 0.75;
-      positions[i * 3 + 2] = -Math.abs(r * Math.cos(phi));
+    const halo = ctx.createRadialGradient(center, center, 1, center, center, blurRadius);
+    halo.addColorStop(0, "rgba(255,255,255,0.95)");
+    halo.addColorStop(0.3, "rgba(255,255,255,0.62)");
+    halo.addColorStop(0.72, "rgba(255,255,255,0.2)");
+    halo.addColorStop(1, "rgba(255,255,255,0)");
+    ctx.fillStyle = halo;
+    ctx.beginPath();
+    ctx.arc(center, center, blurRadius, 0, Math.PI * 2);
+    ctx.fill();
 
-      color.setHex(palette[(Math.random() * palette.length) | 0]);
-      colors[i * 3 + 0] = color.r;
-      colors[i * 3 + 1] = color.g;
-      colors[i * 3 + 2] = color.b;
+    const drawSpiked = (spikes, innerScale = 1) => {
+      const twist = (Math.random() - 0.5) * 0.18;
+      ctx.beginPath();
+      for (let i = 0; i < spikes * 2; i += 1) {
+        const angle = (i * Math.PI) / spikes - Math.PI / 2 + twist;
+        const jitter = 0.86 + Math.random() * 0.28;
+        const radius = (i % 2 === 0 ? outerRadius : innerRadius * innerScale) * jitter;
+        const x = center + Math.cos(angle) * radius;
+        const y = center + Math.sin(angle) * radius;
+        if (i === 0) {
+          ctx.moveTo(x, y);
+        } else {
+          ctx.lineTo(x, y);
+        }
+      }
+      ctx.closePath();
+    };
+
+    if (shape === "diamond") {
+      drawSpiked(4, 0.62);
+    } else if (shape === "burst") {
+      drawSpiked(7, 0.5);
+    } else if (shape === "star5") {
+      drawSpiked(5, 1);
+    } else {
+      drawSpiked(4, 1);
     }
 
-    const geometry = new THREE.BufferGeometry();
-    geometry.setAttribute("position", new THREE.BufferAttribute(positions, 3));
-    geometry.setAttribute("color", new THREE.BufferAttribute(colors, 3));
+    const starFill = ctx.createRadialGradient(center, center, 1, center, center, outerRadius * 1.2);
+    starFill.addColorStop(0, "rgba(255,255,255,1)");
+    starFill.addColorStop(1, "rgba(255,255,255,0.3)");
+    ctx.fillStyle = starFill;
+    ctx.fill();
 
-    const material = new THREE.PointsMaterial({
-      color: 0xffffff,
-      vertexColors: true,
-      size: 0.1,
-      transparent: true,
-      opacity: 0.85,
-      depthWrite: false,
-      blending: THREE.AdditiveBlending,
-      sizeAttenuation: true
+    const core = ctx.createRadialGradient(center, center, 0, center, center, outerRadius * 0.46);
+    core.addColorStop(0, "rgba(255,255,255,1)");
+    core.addColorStop(1, "rgba(255,255,255,0)");
+    ctx.fillStyle = core;
+    ctx.beginPath();
+    ctx.arc(center, center, outerRadius * 0.46, 0, Math.PI * 2);
+    ctx.fill();
+
+    const texture = new THREE.CanvasTexture(texCanvas);
+    texture.colorSpace = THREE.SRGBColorSpace;
+    texture.minFilter = THREE.LinearFilter;
+    texture.magFilter = THREE.LinearFilter;
+    texture.generateMipmaps = false;
+    texture.needsUpdate = true;
+    return texture;
+  }
+
+  function createStarField(count, spread, palette, options = {}) {
+    const {
+      sizeMultiplier = 1,
+      baseOpacity = 0.9,
+      alphaThreshold = 0.18,
+      yScale = 0.75,
+      clampNegativeZ = true
+    } = options;
+
+    const field = new THREE.Group();
+    const materials = [];
+    const color = new THREE.Color();
+
+    const variants = [
+      { shape: "star4", weight: 0.35, size: 0.16, texture: createStarTexture({ shape: "star4", innerRadius: 12, outerRadius: 30, blurRadius: 56 }) },
+      { shape: "star5", weight: 0.28, size: 0.15, texture: createStarTexture({ shape: "star5", innerRadius: 11, outerRadius: 28, blurRadius: 54 }) },
+      { shape: "diamond", weight: 0.2, size: 0.14, texture: createStarTexture({ shape: "diamond", innerRadius: 10, outerRadius: 27, blurRadius: 52 }) },
+      { shape: "burst", weight: 0.17, size: 0.13, texture: createStarTexture({ shape: "burst", innerRadius: 9, outerRadius: 26, blurRadius: 50 }) }
+    ];
+
+    let used = 0;
+    variants.forEach((variant, index) => {
+      const isLast = index === variants.length - 1;
+      const variantCount = isLast ? count - used : Math.max(1, Math.floor(count * variant.weight));
+      used += variantCount;
+
+      const positions = new Float32Array(variantCount * 3);
+      const colors = new Float32Array(variantCount * 3);
+
+      for (let i = 0; i < variantCount; i += 1) {
+        const r = 10 + Math.random() * spread;
+        const theta = Math.random() * Math.PI * 2;
+        const phi = Math.acos(2 * Math.random() - 1);
+
+        positions[i * 3 + 0] = r * Math.sin(phi) * Math.cos(theta);
+        positions[i * 3 + 1] = r * Math.sin(phi) * Math.sin(theta) * yScale;
+        const z = r * Math.cos(phi);
+        positions[i * 3 + 2] = clampNegativeZ ? -Math.abs(z) : z;
+
+        color.setHex(palette[(Math.random() * palette.length) | 0]);
+        color.offsetHSL((Math.random() - 0.5) * 0.1, 0.14 + Math.random() * 0.24, (Math.random() - 0.5) * 0.12);
+        colors[i * 3 + 0] = color.r;
+        colors[i * 3 + 1] = color.g;
+        colors[i * 3 + 2] = color.b;
+      }
+
+      const geometry = new THREE.BufferGeometry();
+      geometry.setAttribute("position", new THREE.BufferAttribute(positions, 3));
+      geometry.setAttribute("color", new THREE.BufferAttribute(colors, 3));
+
+      const material = new THREE.PointsMaterial({
+        color: 0xffffff,
+        map: variant.texture,
+        alphaMap: variant.texture,
+        vertexColors: true,
+        size: variant.size * sizeMultiplier,
+        transparent: true,
+        opacity: baseOpacity,
+        alphaTest: alphaThreshold,
+        depthWrite: false,
+        blending: THREE.AdditiveBlending,
+        sizeAttenuation: true
+      });
+
+      materials.push(material);
+      field.add(new THREE.Points(geometry, material));
     });
 
-    return new THREE.Points(geometry, material);
+    field.userData.materials = materials;
+    return field;
+  }
+
+  function setStarFieldOpacity(field, opacity) {
+    const materials = field?.userData?.materials ?? [];
+    for (const material of materials) {
+      material.opacity = opacity;
+    }
   }
 
   function createEarthTexture() {
@@ -391,16 +507,35 @@
     return astronaut;
   }
 
-  const farPalette = [0xffffff, 0xd9e5ff, 0xf2ebff, 0xbdd4ff, 0xffe6c7];
-  const nearPalette = [0xffffff, 0xd6e6ff, 0xc4d3ff, 0xffddb9, 0xffd2ee];
+  const farPalette = [0xffffff, 0x9ec5ff, 0x88a9ff, 0xd39aff, 0xff9cc8, 0x8fffe5, 0xffbf7f];
+  const nearPalette = [0xffffff, 0x88d0ff, 0x7395ff, 0xc490ff, 0xff87c1, 0x9dffe9, 0xffb064];
 
-  const starsFar = createStarField(3400, 65, farPalette);
+  const starsFar = createStarField(3400, 65, farPalette, {
+    sizeMultiplier: 1.15,
+    baseOpacity: 0.86,
+    alphaThreshold: 0.08
+  });
   world.add(starsFar);
 
-  const starsNear = createStarField(2000, 35, nearPalette);
-  starsNear.material.opacity = 0.55;
-  starsNear.scale.setScalar(0.7);
+  const starsNear = createStarField(2000, 35, nearPalette, {
+    sizeMultiplier: 1.9,
+    baseOpacity: 0.95,
+    alphaThreshold: 0.06
+  });
+  setStarFieldOpacity(starsNear, 0.8);
+  starsNear.scale.setScalar(1.1);
   world.add(starsNear);
+
+  // A closer layer to make the star shapes clearly visible in the foreground.
+  const starsAccent = createStarField(900, 16, nearPalette, {
+    sizeMultiplier: 2.8,
+    baseOpacity: 1,
+    alphaThreshold: 0.045,
+    clampNegativeZ: false
+  });
+  starsAccent.position.z = 3.8;
+  starsAccent.position.y = 0.4;
+  world.add(starsAccent);
 
   const dust = createDustCloud(1400, 16, 8, 28);
   dust.position.z = 4;
@@ -733,6 +868,8 @@
 
     starsFar.rotation.y = elapsed * 0.01;
     starsNear.rotation.y = -elapsed * 0.016;
+    starsAccent.rotation.y = elapsed * 0.03;
+    starsAccent.rotation.x = Math.sin(elapsed * 0.2) * 0.05;
     dust.rotation.z = elapsed * 0.02;
 
     nebulaA.position.y = 1.8 + Math.sin(elapsed * 0.24) * 0.15;
