@@ -19,17 +19,17 @@
 
     <main class="story" role="main">
       <section class="panel intro" data-stage="intro">
-        <p class="eyebrow">For You</p>
-        <h1 class="title">You're My Home Planet</h1>
+        <p class="eyebrow">Cyber Sifis</p>
+        <h1 class="title">You are My Home Planet</h1>
         <p class="caption">In an infinite universe...</p>
       </section>
 
       <section class="panel journey" data-stage="journey">
-        <p class="caption">I still found my way to you.</p>
+        <p class="caption">No matter where I drift...</p>
       </section>
 
       <section class="panel connection" data-stage="connection">
-        <p class="caption">No matter where I drift...</p>
+        <p class="caption">I still easily found my way to you.</p>
       </section>
 
       <section class="panel finale" data-stage="finale">
@@ -37,9 +37,16 @@
       </section>
     </main>
 
-    <script src="https://unpkg.com/three@0.160.0/build/three.min.js"></script>
-    <script src="https://cdn.jsdelivr.net/npm/gsap@3.12.5/dist/gsap.min.js"></script>
-    <script src="https://cdn.jsdelivr.net/npm/gsap@3.12.5/dist/ScrollTrigger.min.js"></script>
-    <script src="main.js"></script>
+    <script type="importmap">
+      {
+        "imports": {
+          "three": "https://cdn.jsdelivr.net/npm/three@0.160.0/build/three.module.js",
+          "three/addons/": "https://cdn.jsdelivr.net/npm/three@0.160.0/examples/jsm/",
+          "gsap": "https://cdn.jsdelivr.net/npm/gsap@3.12.5/index.js",
+          "gsap/ScrollTrigger": "https://cdn.jsdelivr.net/npm/gsap@3.12.5/ScrollTrigger.js"
+        }
+      }
+    </script>
+    <script type="module" src="main.js"></script>
   </body>
 </html>

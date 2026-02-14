@@ -1,9 +1,18 @@
-﻿(() => {
+﻿import * as THREE from "three";
+import { GLTFLoader } from "three/addons/loaders/GLTFLoader.js";
+import { DRACOLoader } from "three/addons/loaders/DRACOLoader.js";
+import { OBJLoader } from "three/addons/loaders/OBJLoader.js";
+import { gsap } from "gsap";
+import { ScrollTrigger } from "gsap/ScrollTrigger";
+
+(() => {
   gsap.registerPlugin(ScrollTrigger);
 
   const canvas = document.getElementById("scene-canvas");
   const storyRoot = document.querySelector(".story");
   const prefersReducedMotion = window.matchMedia("(prefers-reduced-motion: reduce)").matches;
+  const astronautModelUrl = "assets/astronaut.glb";
+  const heartModelUrl = "assets/heart.obj";
 
   const scene = new THREE.Scene();
   scene.fog = new THREE.FogExp2(0x070b1f, 0.017);
@@ -452,59 +461,362 @@
   }
 
   function createAstronaut() {
-    const suitMain = new THREE.MeshStandardMaterial({ color: 0xeef2ff, roughness: 0.4, metalness: 0.15 });
-    const suitDark = new THREE.MeshStandardMaterial({ color: 0x4c5f92, roughness: 0.6, metalness: 0.1 });
+    const suitMain = new THREE.MeshStandardMaterial({ color: 0xf2f5ff, roughness: 0.45, metalness: 0.12 });
+    const suitPanel = new THREE.MeshStandardMaterial({ color: 0xd7e0ff, roughness: 0.5, metalness: 0.16 });
+    const suitDark = new THREE.MeshStandardMaterial({ color: 0x445986, roughness: 0.62, metalness: 0.08 });
+    const suitJoint = new THREE.MeshStandardMaterial({ color: 0x6b7fa8, roughness: 0.72, metalness: 0.05 });
+    const suitBoot = new THREE.MeshStandardMaterial({ color: 0x1a233d, roughness: 0.78, metalness: 0.05 });
+    const accentMat = new THREE.MeshStandardMaterial({
+      color: 0x9db7ff,
+      emissive: 0x577ee6,
+      emissiveIntensity: 0.55,
+      roughness: 0.28,
+      metalness: 0.4
+    });
     const visorMat = new THREE.MeshPhysicalMaterial({
-      color: 0x93a7ff,
-      metalness: 0.2,
-      roughness: 0.05,
-      transmission: 0.85,
+      color: 0x8eabff,
+      metalness: 0.08,
+      roughness: 0.03,
+      transmission: 0.9,
+      clearcoat: 1,
+      clearcoatRoughness: 0.03,
       transparent: true,
-      opacity: 0.68
+      opacity: 0.7
     });
 
     const astronaut = new THREE.Group();
 
-    const torso = new THREE.Mesh(new THREE.CapsuleGeometry(0.36, 0.75, 10, 18), suitMain);
-    torso.rotation.z = -0.08;
+    const torso = new THREE.Mesh(new THREE.CapsuleGeometry(0.34, 0.74, 10, 20), suitMain);
+    torso.rotation.z = -0.05;
     astronaut.add(torso);
 
-    const backpack = new THREE.Mesh(new THREE.BoxGeometry(0.46, 0.56, 0.25), suitDark);
-    backpack.position.set(-0.03, -0.02, -0.31);
-    backpack.rotation.z = -0.07;
+    const torsoPanel = new THREE.Mesh(new THREE.BoxGeometry(0.44, 0.32, 0.18), suitPanel);
+    torsoPanel.position.set(0.02, 0.12, 0.24);
+    torsoPanel.rotation.x = -0.08;
+    astronaut.add(torsoPanel);
+
+    const waist = new THREE.Mesh(new THREE.CylinderGeometry(0.26, 0.28, 0.2, 20), suitPanel);
+    waist.position.set(0.01, -0.5, 0.02);
+    waist.rotation.z = -0.03;
+    astronaut.add(waist);
+
+    const chestConsole = new THREE.Mesh(new THREE.BoxGeometry(0.19, 0.13, 0.06), suitDark);
+    chestConsole.position.set(0.04, 0.08, 0.34);
+    astronaut.add(chestConsole);
+
+    for (let i = 0; i < 3; i += 1) {
+      const indicator = new THREE.Mesh(new THREE.SphereGeometry(0.012, 8, 8), accentMat);
+      indicator.position.set(-0.02 + i * 0.045, 0.085, 0.375);
+      astronaut.add(indicator);
+    }
+
+    const backpack = new THREE.Mesh(new THREE.BoxGeometry(0.45, 0.56, 0.24), suitDark);
+    backpack.position.set(-0.03, -0.02, -0.33);
+    backpack.rotation.z = -0.06;
     astronaut.add(backpack);
 
-    const head = new THREE.Mesh(new THREE.SphereGeometry(0.29, 24, 24), suitMain);
-    head.position.set(0.03, 0.69, 0.04);
+    const thrusterLeft = new THREE.Mesh(new THREE.CylinderGeometry(0.075, 0.085, 0.22, 16), suitJoint);
+    thrusterLeft.position.set(-0.16, -0.22, -0.45);
+    thrusterLeft.rotation.x = Math.PI * 0.5;
+    backpack.add(thrusterLeft);
+
+    const thrusterRight = thrusterLeft.clone();
+    thrusterRight.position.x = 0.12;
+    backpack.add(thrusterRight);
+
+    const head = new THREE.Mesh(new THREE.SphereGeometry(0.24, 26, 26), suitMain);
+    head.position.set(0.03, 0.67, 0.03);
     astronaut.add(head);
 
-    const helmet = new THREE.Mesh(new THREE.SphereGeometry(0.34, 30, 30), visorMat);
-    helmet.position.copy(head.position);
-    astronaut.add(helmet);
+    const helmetShell = new THREE.Mesh(
+      new THREE.SphereGeometry(0.33, 34, 34),
+      new THREE.MeshPhysicalMaterial({
+        color: 0xf4f8ff,
+        roughness: 0.04,
+        metalness: 0.05,
+        transmission: 0.18,
+        transparent: true,
+        opacity: 0.28
+      })
+    );
+    helmetShell.position.copy(head.position);
+    astronaut.add(helmetShell);
 
-    const armGeo = new THREE.CapsuleGeometry(0.1, 0.42, 6, 10);
-    const leftArm = new THREE.Mesh(armGeo, suitMain);
-    leftArm.position.set(-0.39, 0.1, 0.03);
-    leftArm.rotation.set(0.1, 0.1, 0.7);
-    astronaut.add(leftArm);
+    const visor = new THREE.Mesh(new THREE.SphereGeometry(0.21, 24, 18), visorMat);
+    visor.position.set(head.position.x + 0.02, head.position.y - 0.01, head.position.z + 0.16);
+    visor.scale.set(1, 0.95, 0.62);
+    astronaut.add(visor);
 
-    const rightArm = new THREE.Mesh(armGeo, suitMain);
-    rightArm.position.set(0.42, 0.04, 0.03);
-    rightArm.rotation.set(-0.05, -0.1, -0.9);
-    astronaut.add(rightArm);
+    const helmetRing = new THREE.Mesh(new THREE.TorusGeometry(0.29, 0.03, 12, 36), suitDark);
+    helmetRing.position.set(head.position.x, head.position.y - 0.02, head.position.z - 0.01);
+    helmetRing.rotation.x = Math.PI * 0.5;
+    astronaut.add(helmetRing);
 
-    const legGeo = new THREE.CapsuleGeometry(0.11, 0.45, 8, 12);
-    const leftLeg = new THREE.Mesh(legGeo, suitMain);
-    leftLeg.position.set(-0.15, -0.72, 0.02);
-    leftLeg.rotation.z = 0.11;
-    astronaut.add(leftLeg);
+    const createArm = (side) => {
+      const arm = new THREE.Group();
+      const upper = new THREE.Mesh(new THREE.CapsuleGeometry(0.083, 0.22, 6, 12), suitMain);
+      upper.rotation.z = side * 0.45;
+      arm.add(upper);
 
-    const rightLeg = new THREE.Mesh(legGeo, suitMain);
-    rightLeg.position.set(0.16, -0.69, 0.02);
-    rightLeg.rotation.z = -0.14;
-    astronaut.add(rightLeg);
+      const elbow = new THREE.Mesh(new THREE.SphereGeometry(0.078, 14, 14), suitJoint);
+      elbow.position.set(side * 0.14, -0.1, 0.01);
+      arm.add(elbow);
+
+      const forearm = new THREE.Mesh(new THREE.CapsuleGeometry(0.074, 0.2, 6, 12), suitPanel);
+      forearm.position.set(side * 0.22, -0.2, 0.05);
+      forearm.rotation.set(side * 0.1, side * 0.05, side * 0.72);
+      arm.add(forearm);
+
+      const glove = new THREE.Mesh(new THREE.SphereGeometry(0.095, 18, 18), suitDark);
+      glove.position.set(side * 0.29, -0.28, 0.08);
+      arm.add(glove);
+
+      arm.position.set(side * 0.37, 0.1, 0.03);
+      arm.rotation.set(side * 0.05, 0.08, side * 0.17);
+      return arm;
+    };
+
+    astronaut.add(createArm(-1));
+    astronaut.add(createArm(1));
+
+    const createLeg = (side) => {
+      const leg = new THREE.Group();
+      const upper = new THREE.Mesh(new THREE.CapsuleGeometry(0.095, 0.22, 6, 12), suitMain);
+      leg.add(upper);
+
+      const knee = new THREE.Mesh(new THREE.SphereGeometry(0.09, 14, 14), suitJoint);
+      knee.position.set(0, -0.17, 0.02);
+      leg.add(knee);
+
+      const lower = new THREE.Mesh(new THREE.CapsuleGeometry(0.083, 0.22, 6, 12), suitPanel);
+      lower.position.set(0.01, -0.34, 0.07);
+      lower.rotation.x = -0.18;
+      leg.add(lower);
+
+      const boot = new THREE.Mesh(new THREE.BoxGeometry(0.21, 0.12, 0.3), suitBoot);
+      boot.position.set(0.03, -0.51, 0.19);
+      boot.rotation.x = 0.2;
+      leg.add(boot);
+
+      leg.position.set(side * 0.15, -0.69, 0.01);
+      leg.rotation.z = -side * 0.11;
+      return leg;
+    };
+
+    astronaut.add(createLeg(-1));
+    astronaut.add(createLeg(1));
+
+    const antenna = new THREE.Mesh(new THREE.CylinderGeometry(0.009, 0.009, 0.24, 10), suitJoint);
+    antenna.position.set(-0.14, 0.94, -0.08);
+    antenna.rotation.z = -0.26;
+    astronaut.add(antenna);
+
+    const antennaTip = new THREE.Mesh(new THREE.SphereGeometry(0.024, 12, 12), accentMat);
+    antennaTip.position.set(-0.18, 1.05, -0.09);
+    astronaut.add(antennaTip);
+
+    const tetherCurve = new THREE.CatmullRomCurve3([
+      new THREE.Vector3(-0.18, -0.1, -0.43),
+      new THREE.Vector3(-0.48, -0.16, -0.55),
+      new THREE.Vector3(-0.72, -0.08, -0.18),
+      new THREE.Vector3(-0.45, 0.16, 0.08)
+    ]);
+    const tether = new THREE.Mesh(new THREE.TubeGeometry(tetherCurve, 28, 0.012, 8, false), suitJoint);
+    astronaut.add(tether);
+
+    astronaut.scale.setScalar(0.96);
 
     return astronaut;
+  }
+
+  function normalizeAstronautModel(model) {
+    const bounds = new THREE.Box3().setFromObject(model);
+    const size = new THREE.Vector3();
+    const center = new THREE.Vector3();
+    bounds.getSize(size);
+    bounds.getCenter(center);
+
+    if (size.y <= 0.0001) {
+      return model;
+    }
+
+    const targetHeight = 2.05;
+    const scale = targetHeight / size.y;
+    model.scale.multiplyScalar(scale);
+
+    const scaledBounds = new THREE.Box3().setFromObject(model);
+    const scaledCenter = new THREE.Vector3();
+    scaledBounds.getCenter(scaledCenter);
+    model.position.sub(scaledCenter);
+
+    const recenteredBounds = new THREE.Box3().setFromObject(model);
+    const feetY = recenteredBounds.min.y;
+    model.position.y += -0.92 - feetY;
+
+    return model;
+  }
+
+  function loadAstronautModel(url) {
+    if (window.location.protocol === "file:") {
+      console.warn("[Astronaut] GLB loading is often blocked on file:// URLs. Use a local server (http://localhost).");
+    }
+
+    const loader = new GLTFLoader();
+    const dracoLoader = new DRACOLoader();
+    dracoLoader.setDecoderPath("https://cdn.jsdelivr.net/npm/three@0.160.0/examples/jsm/libs/draco/");
+    loader.setDRACOLoader(dracoLoader);
+
+    return new Promise((resolve) => {
+      loader.load(
+        url,
+        (gltf) => {
+          const model = gltf.scene || (gltf.scenes && gltf.scenes[0]);
+          if (!model) {
+            resolve(null);
+            return;
+          }
+
+          model.traverse((node) => {
+            if (!node.isMesh) {
+              return;
+            }
+            node.castShadow = false;
+            node.receiveShadow = false;
+            node.frustumCulled = false;
+
+            const materialList = Array.isArray(node.material) ? node.material : [node.material];
+            for (const material of materialList) {
+              if (!material) {
+                continue;
+              }
+
+              if ("envMapIntensity" in material) {
+                material.envMapIntensity = Math.max(material.envMapIntensity || 0, 1.45);
+              }
+              if ("roughness" in material && typeof material.roughness === "number") {
+                material.roughness = Math.min(material.roughness, 0.75);
+              }
+              if ("metalness" in material && typeof material.metalness === "number") {
+                material.metalness *= 0.65;
+              }
+              if ("color" in material && material.color) {
+                material.color.multiplyScalar(1.16);
+              }
+              if ("emissive" in material && material.emissive) {
+                material.emissive.add(new THREE.Color(0x2a3d64));
+                material.emissiveIntensity = Math.max(material.emissiveIntensity || 0, 0.36);
+              }
+              material.needsUpdate = true;
+            }
+          });
+
+            resolve(normalizeAstronautModel(model));
+            console.info("[Astronaut] GLB loaded:", url);
+            dracoLoader.dispose();
+          },
+          undefined,
+          (error) => {
+            console.error("[Astronaut] Failed to load GLB:", url, error);
+            resolve(null);
+            dracoLoader.dispose();
+          }
+        );
+      });
+  }
+
+  function normalizeHeartModel(model) {
+    const bounds = new THREE.Box3().setFromObject(model);
+    const size = new THREE.Vector3();
+    const center = new THREE.Vector3();
+    bounds.getSize(size);
+    bounds.getCenter(center);
+
+    const maxAxis = Math.max(size.x, size.y, size.z) || 1;
+    const scale = 1.3 / maxAxis;
+    model.scale.multiplyScalar(scale);
+    model.position.sub(center);
+    // OBJ from Blender is usually Z-up; rotate to Y-up so the heart is upright.
+    model.rotation.set(-Math.PI * 0.5, 0.36, 0.04);
+    return model;
+  }
+
+  function loadHeartModel(url) {
+    const loader = new OBJLoader();
+    return new Promise((resolve) => {
+      loader.load(
+        url,
+        (obj) => {
+          const heart = normalizeHeartModel(obj);
+          heart.traverse((node) => {
+            if (!node.isMesh) {
+              return;
+            }
+
+            node.material = new THREE.MeshPhysicalMaterial({
+              color: 0xff2c5b,
+              emissive: 0x6f0018,
+              emissiveIntensity: 0.55,
+              roughness: 0.28,
+              metalness: 0.08,
+              clearcoat: 0.65,
+              clearcoatRoughness: 0.22
+            });
+            node.castShadow = false;
+            node.receiveShadow = false;
+            node.frustumCulled = false;
+          });
+
+          console.info("[Heart] OBJ loaded:", url);
+          resolve(heart);
+        },
+        undefined,
+        (error) => {
+          console.error("[Heart] Failed to load OBJ:", url, error);
+          resolve(null);
+        }
+      );
+    });
+  }
+
+  function createHeartParticles(count = 180) {
+    const positions = new Float32Array(count * 3);
+    const seeds = new Float32Array(count * 4);
+
+    for (let i = 0; i < count; i += 1) {
+      const theta = Math.random() * Math.PI * 2;
+      const phi = Math.acos(2 * Math.random() - 1);
+      const radius = 0.62 + Math.random() * 0.48;
+      const speed = 0.45 + Math.random() * 1.1;
+
+      positions[i * 3 + 0] = Math.cos(theta) * Math.sin(phi) * radius * 0.95;
+      positions[i * 3 + 1] = Math.cos(phi) * radius * 0.8;
+      positions[i * 3 + 2] = Math.sin(theta) * Math.sin(phi) * radius * 0.95;
+
+      seeds[i * 4 + 0] = theta;
+      seeds[i * 4 + 1] = phi;
+      seeds[i * 4 + 2] = radius;
+      seeds[i * 4 + 3] = speed;
+    }
+
+    const geometry = new THREE.BufferGeometry();
+    geometry.setAttribute("position", new THREE.BufferAttribute(positions, 3));
+
+    const sparkleTexture = makeSoftTexture("rgba(255,175,190,0.95)", "rgba(255,50,86,0)");
+    const material = new THREE.PointsMaterial({
+      color: 0xff4b6f,
+      map: sparkleTexture,
+      alphaMap: sparkleTexture,
+      size: 0.11,
+      transparent: true,
+      opacity: 0,
+      depthWrite: false,
+      blending: THREE.AdditiveBlending,
+      sizeAttenuation: true
+    });
+
+    const particles = new THREE.Points(geometry, material);
+    particles.userData.seeds = seeds;
+    return particles;
   }
 
   const farPalette = [0xffffff, 0x9ec5ff, 0x88a9ff, 0xd39aff, 0xff9cc8, 0x8fffe5, 0xffbf7f];
@@ -691,6 +1003,77 @@
   earthAtmosphere.scale.set(7.4, 7.4, 1);
   world.add(earthAtmosphere);
 
+  const heartReveal = { value: 0 };
+  const heartAnchor = new THREE.Vector3();
+  const heartDesktopOffset = new THREE.Vector3(1.18, 0.1, 0.22);
+  const heartMobileOffset = new THREE.Vector3(0.7, -0.08, 0.16);
+
+  function updateHeartAnchor() {
+    if (window.innerWidth <= 760) {
+      heartAnchor.copy(homePlanet.container.position).add(heartMobileOffset);
+    } else {
+      heartAnchor.copy(homePlanet.container.position).add(heartDesktopOffset);
+    }
+  }
+
+  updateHeartAnchor();
+
+  const heartRig = new THREE.Group();
+  heartRig.visible = false;
+  heartRig.position.copy(heartAnchor);
+  heartRig.scale.setScalar(0.001);
+  world.add(heartRig);
+
+  const heartAuraTexture = makeSoftTexture("rgba(255,92,130,0.78)", "rgba(255,44,91,0)");
+  const heartAura = new THREE.Sprite(
+    new THREE.SpriteMaterial({
+      map: heartAuraTexture,
+      color: 0xff5a7f,
+      transparent: true,
+      opacity: 0,
+      depthWrite: false,
+      blending: THREE.AdditiveBlending
+    })
+  );
+  heartAura.scale.set(3.4, 3.4, 1);
+  heartRig.add(heartAura);
+
+  const heartParticles = createHeartParticles(prefersReducedMotion ? 90 : 190);
+  heartRig.add(heartParticles);
+
+  const heartLight = new THREE.PointLight(0xff4f72, 0, 12, 2);
+  heartLight.position.set(0.1, 0.12, 0.7);
+  heartRig.add(heartLight);
+
+  const heartTrailTexture = makeSoftTexture("rgba(255,130,160,0.86)", "rgba(255,50,95,0)");
+  const heartTrailCount = prefersReducedMotion ? 5 : 9;
+  const heartTrail = [];
+  const heartTrailPositions = [];
+  for (let i = 0; i < heartTrailCount; i += 1) {
+    const trailSprite = new THREE.Sprite(
+      new THREE.SpriteMaterial({
+        map: heartTrailTexture,
+        color: i % 2 === 0 ? 0xff4e73 : 0xff7a9a,
+        transparent: true,
+        opacity: 0,
+        depthWrite: false,
+        blending: THREE.AdditiveBlending
+      })
+    );
+    trailSprite.visible = false;
+    trailSprite.scale.set(0.9 - i * 0.065, 0.9 - i * 0.065, 1);
+    world.add(trailSprite);
+    heartTrail.push(trailSprite);
+    heartTrailPositions.push(heartAnchor.clone());
+  }
+
+  loadHeartModel(heartModelUrl).then((heartModel) => {
+    if (!heartModel) {
+      return;
+    }
+    heartRig.add(heartModel);
+  });
+
   const fallingStars = createFallingStars(prefersReducedMotion ? 3 : 7);
 
   function spawnFallingStar(star) {
@@ -732,29 +1115,76 @@
     }
   }
 
-  const astronaut = createAstronaut();
-  astronaut.position.set(-1.4, 0.3, 0.35);
-  astronaut.rotation.set(-0.2, 0.25, 0.11);
-  world.add(astronaut);
+  const astronautRig = new THREE.Group();
+  const astronautContainer = new THREE.Group();
+  const fallbackAstronaut = createAstronaut();
+  fallbackAstronaut.rotation.set(-0.17, 0.12, 0.1);
+  astronautContainer.add(fallbackAstronaut);
 
-  const astronautAnchor = astronaut.position.clone();
+  astronautRig.position.set(-4.05, -2.2, 2.25);
+  astronautRig.rotation.set(-0.07, 0.34, 0.04);
+  astronautRig.add(astronautContainer);
+
+  const astronautAmbientLight = new THREE.AmbientLight(0xe3ebff, 0.55);
+  astronautRig.add(astronautAmbientLight);
+
+  const astronautKeyLight = new THREE.PointLight(0xd7e4ff, 2.05, 14, 2);
+  astronautKeyLight.position.set(1.2, 0.7, 1.35);
+  astronautRig.add(astronautKeyLight);
+
+  const astronautFillLight = new THREE.PointLight(0xffd7ba, 1.15, 12, 2);
+  astronautFillLight.position.set(-1.05, -0.5, 1.05);
+  astronautRig.add(astronautFillLight);
+
+  const astronautRimLight = new THREE.PointLight(0x8fafff, 0.95, 12, 2);
+  astronautRimLight.position.set(-0.22, 0.55, -1.25);
+  astronautRig.add(astronautRimLight);
+
+  world.add(astronautRig);
+
+  const astronautAnchor = astronautRig.position.clone();
+  const astronautRigRotationAnchor = astronautRig.rotation.clone();
+  const astronautContainerAnchor = astronautContainer.position.clone();
+  const astronautContainerRotationAnchor = astronautContainer.rotation.clone();
+  const astronautScrollState = {
+    target: 0,
+    current: 0
+  };
+
+  loadAstronautModel(astronautModelUrl).then((loadedAstronaut) => {
+    if (!loadedAstronaut) {
+      return;
+    }
+    astronautContainer.clear();
+    astronautContainer.add(loadedAstronaut);
+  });
 
   if (!prefersReducedMotion) {
-    gsap.to(astronaut.position, {
-      y: astronaut.position.y + 0.28,
+    gsap.to(astronautContainer.position, {
+      y: astronautContainerAnchor.y + 0.28,
       duration: 3.8,
       ease: "sine.inOut",
       yoyo: true,
       repeat: -1
     });
 
-    gsap.to(astronaut.rotation, {
-      z: astronaut.rotation.z + 0.14,
-      x: astronaut.rotation.x + 0.04,
+    gsap.to(astronautContainer.rotation, {
+      z: astronautContainerRotationAnchor.z + 0.14,
+      x: astronautContainerRotationAnchor.x + 0.04,
       duration: 5.2,
       ease: "sine.inOut",
       yoyo: true,
       repeat: -1
+    });
+
+    ScrollTrigger.create({
+      trigger: storyRoot,
+      start: "top top",
+      end: "bottom bottom",
+      scrub: 1,
+      onUpdate: (self) => {
+        astronautScrollState.target = self.progress;
+      }
     });
   }
 
@@ -793,7 +1223,8 @@
     .to(earthAtmosphere.material, { opacity: 0.32, duration: 1 }, 2)
     .to(homeHalo.material, { opacity: 0.42, duration: 1 }, 2)
     .to(warmLight, { intensity: 1.22, duration: 1 }, 2)
-    .to(coolFill, { intensity: 0.85, duration: 1 }, 2);
+    .to(coolFill, { intensity: 0.85, duration: 1 }, 2)
+    .to(heartReveal, { value: 1, duration: 1 }, 2);
 
   // Reveal each caption as the user enters the related scene chapter.
   document.querySelectorAll(".panel").forEach((panel) => {
@@ -887,7 +1318,77 @@
       homePlanet.cloudLayer.rotation.y += 0.0026;
     }
 
-    astronaut.position.x = astronautAnchor.x + Math.sin(elapsed * 0.5) * 0.08;
+    astronautScrollState.current += (astronautScrollState.target - astronautScrollState.current) * 0.08;
+    const scrollDrift = prefersReducedMotion ? 0 : astronautScrollState.current - 0.5;
+    const scrollWave = prefersReducedMotion ? 0 : Math.sin(astronautScrollState.current * Math.PI * 2);
+
+    const driftPhase = prefersReducedMotion ? 0 : elapsed * 0.62;
+    const bobX = Math.sin(driftPhase) * 0.26 + Math.cos(driftPhase * 0.45) * 0.07;
+    const bobY = Math.sin(driftPhase * 0.82 + 1.1) * 0.22;
+    const bobZ = Math.cos(driftPhase * 0.7) * 0.18;
+
+    astronautRig.position.x = astronautAnchor.x + bobX * 0.7 + scrollDrift * 0.72;
+    astronautRig.position.y = astronautAnchor.y + bobY * 0.75 + Math.sin(scrollDrift * Math.PI) * 0.18;
+    astronautRig.position.z = astronautAnchor.z + bobZ - scrollDrift * 1.05 + scrollWave * 0.18;
+    const pitchOffset = prefersReducedMotion ? 0 : (Math.cos(astronautScrollState.current * Math.PI * 1.6) - 1) * 0.06;
+    astronautRig.rotation.x = astronautRigRotationAnchor.x + pitchOffset + Math.sin(driftPhase * 0.55) * 0.05;
+    astronautRig.rotation.y = astronautRigRotationAnchor.y + scrollDrift * 0.34 + (prefersReducedMotion ? 0 : elapsed * 0.04);
+    astronautRig.rotation.z = astronautRigRotationAnchor.z + scrollWave * 0.16 + Math.cos(driftPhase * 0.5) * 0.08;
+
+    astronautContainer.rotation.y = astronautContainerRotationAnchor.y + (prefersReducedMotion ? 0 : Math.sin(elapsed * 0.9) * 0.2);
+
+    const heartVisibility = THREE.MathUtils.clamp(heartReveal.value, 0, 1);
+    const heartIsVisible = heartVisibility > 0.01;
+    heartRig.visible = heartIsVisible;
+    if (heartIsVisible) {
+      const pulse = 1 + Math.sin(elapsed * 5.2) * 0.06 * heartVisibility;
+      heartRig.scale.setScalar(Math.max(0.001, heartVisibility) * pulse);
+      heartRig.position.copy(heartAnchor);
+      heartRig.position.y += Math.sin(elapsed * 1.45) * 0.1 * heartVisibility;
+      heartRig.rotation.y = elapsed * 0.72;
+      heartRig.rotation.x = -0.16 + Math.cos(elapsed * 0.7) * 0.06;
+
+      heartAura.material.opacity = 0.08 + heartVisibility * 0.48;
+      heartLight.intensity = 0.15 + heartVisibility * 1.75;
+
+      const particleMaterial = heartParticles.material;
+      particleMaterial.opacity = 0.12 + heartVisibility * 0.75;
+      heartParticles.rotation.y = elapsed * 0.95;
+      heartParticles.rotation.z = Math.sin(elapsed * 0.8) * 0.4;
+
+      for (let i = 0; i < heartTrail.length; i += 1) {
+        const followTarget = i === 0 ? heartRig.position : heartTrailPositions[i - 1];
+        const followStrength = Math.max(0.08, 0.32 - i * 0.022);
+        heartTrailPositions[i].lerp(followTarget, followStrength);
+
+        const trailSprite = heartTrail[i];
+        trailSprite.visible = true;
+        trailSprite.position.copy(heartTrailPositions[i]);
+        trailSprite.position.z -= i * 0.06;
+        const baseScale = Math.max(0.18, 0.86 - i * 0.07);
+        trailSprite.scale.set(baseScale * heartVisibility, baseScale * heartVisibility, 1);
+        trailSprite.material.opacity = Math.max(0.02, (0.32 - i * 0.03) * heartVisibility);
+      }
+
+      const positionAttr = heartParticles.geometry.getAttribute("position");
+      const positionArray = positionAttr.array;
+      const seeds = heartParticles.userData.seeds;
+      for (let i = 0; i < seeds.length / 4; i += 1) {
+        const theta = seeds[i * 4 + 0] + elapsed * seeds[i * 4 + 3] * 0.35;
+        const phi = seeds[i * 4 + 1] + Math.sin(elapsed * 0.7 + i * 0.04) * 0.09;
+        const radius = seeds[i * 4 + 2] + Math.sin(elapsed * seeds[i * 4 + 3] + i * 0.13) * 0.09 * heartVisibility;
+
+        positionArray[i * 3 + 0] = Math.cos(theta) * Math.sin(phi) * radius * 0.95;
+        positionArray[i * 3 + 1] = Math.cos(phi) * radius * 0.8;
+        positionArray[i * 3 + 2] = Math.sin(theta) * Math.sin(phi) * radius * 0.95;
+      }
+      positionAttr.needsUpdate = true;
+    } else {
+      for (let i = 0; i < heartTrail.length; i += 1) {
+        heartTrail[i].visible = false;
+      }
+    }
+
     updateFallingStars(delta);
 
     camera.lookAt(focusPoint.x, focusPoint.y, focusPoint.z);
@@ -902,7 +1403,13 @@
     camera.aspect = window.innerWidth / window.innerHeight;
     camera.updateProjectionMatrix();
 
+    updateHeartAnchor();
+    for (let i = 0; i < heartTrailPositions.length; i += 1) {
+      heartTrailPositions[i].copy(heartAnchor);
+    }
+
     renderer.setPixelRatio(Math.min(window.devicePixelRatio, 2));
     renderer.setSize(window.innerWidth, window.innerHeight);
   });
 })();
+
